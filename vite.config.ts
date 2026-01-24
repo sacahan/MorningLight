@@ -1,11 +1,12 @@
 /// <reference types="vitest" />
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './', // Using relative path for easier deployment or /MorningLight/ if known
   plugins: [
     react(),
     VitePWA({

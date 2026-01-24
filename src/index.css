@@ -1,8 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+  --color-rose-800: #9f1239;
+  --color-rose-900: #881337;
+  --color-rose-950: #4c0519;
+
+  --color-cream-50: #fffdfa;
+  --color-cream-100: #fff9f0;
+  --color-cream-200: #fff2e0;
+  --color-cream-300: #ffebcc;
+  --color-cream-400: #ffe0b3;
+  --color-cream-500: #ffd699;
+
+  --font-bubble: "Nunito", sans-serif;
+  
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
 
 @layer base {
   body {
