@@ -18,7 +18,8 @@ describe('useWeights', () => {
 
   it('should fetch weights on load', async () => {
     const mockData = [{ id: '1', weight: 70, date: '2026-01-01', created_at: '2026-01-01T00:00:00Z' }];
-    (supabase.from as Mock).mockReturnValue({
+    const mockFrom = supabase.from as Mock;
+    mockFrom.mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
@@ -32,7 +33,8 @@ describe('useWeights', () => {
   });
 
   it('should add weight via upsert', async () => {
-    (supabase.from as Mock).mockReturnValue({
+    const mockFrom = supabase.from as Mock;
+    mockFrom.mockReturnValue({
       upsert: vi.fn().mockResolvedValue({ error: null }),
       // For refresh after upsert
       select: vi.fn().mockReturnThis(),

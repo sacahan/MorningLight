@@ -48,8 +48,16 @@ export function useWeights(userId: string | undefined) {
   }, [userId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchWeights(true);
+    let isMounted = true;
+    
+    // Use a microtask to avoid the synchronous setState in effect warning
+    Promise.resolve().then(() => {
+      if (isMounted) {
+        fetchWeights(true);
+      }
+    });
+
+    return () => { isMounted = false; };
   }, [fetchWeights]);
 
   const addWeight = async (weight: number, date: string) => {
