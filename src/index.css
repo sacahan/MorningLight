@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-rose-50 text-slate-700 font-bubble antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-3xl p-6 shadow-sm border border-rose-100;
+  }
+  
+  .btn-primary {
+    @apply bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-2xl transition-all active:scale-95 shadow-md shadow-rose-200;
+  }
+
+  .btn-secondary {
+    @apply bg-white hover:bg-rose-50 text-rose-500 border-2 border-rose-500 font-bold py-3 px-6 rounded-2xl transition-all active:scale-95;
+  }
+}
