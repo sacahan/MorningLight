@@ -6,7 +6,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './', // Using relative path for easier deployment or /MorningLight/ if known
+  base: '/MorningLight/',
   plugins: [
     react(),
     VitePWA({

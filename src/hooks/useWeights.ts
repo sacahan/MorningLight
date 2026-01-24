@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 export interface WeightRecord {
   id: string;
   weight: number;
+  body_fat?: number;
   date: string;
   created_at: string;
 }
@@ -60,11 +61,11 @@ export function useWeights(userId: string | undefined) {
     return () => { isMounted = false; };
   }, [fetchWeights]);
 
-  const addWeight = async (weight: number, date: string) => {
+  const addWeight = async (weight: number, date: string, bodyFat?: number) => {
     if (!userId) return;
     const { error } = await supabase
       .from('weights')
-      .upsert({ user_id: userId, weight, date });
+      .upsert({ user_id: userId, weight, date, body_fat: bodyFat });
     
     if (!error) {
       fetchWeights(true);

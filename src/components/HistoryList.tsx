@@ -36,7 +36,12 @@ export const HistoryList: React.FC<HistoryListProps> = ({
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-400">{record.date}</p>
-                <p className="text-xl font-black text-slate-700">{record.weight} <span className="text-sm font-bold">kg</span></p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-black text-slate-700">{record.weight} <span className="text-sm font-bold">kg</span></p>
+                  {record.body_fat && (
+                    <p className="text-sm font-bold text-rose-400">/ {record.body_fat}%</p>
+                  )}
+                </div>
               </div>
             </div>
             

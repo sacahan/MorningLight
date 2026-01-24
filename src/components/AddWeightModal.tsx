@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Mascot } from './Mascot';
-import { Calendar, Weight, X } from 'lucide-react';
+import { Calendar, Weight, X, Activity } from 'lucide-react';
 
 interface AddWeightModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (weight: number, date: string) => Promise<void>;
+  onSubmit: (weight: number, date: string, bodyFat?: number) => Promise<void>;
 }
 
 export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const today = new Date().toISOString().split('T')[0];
   const [weight, setWeight] = useState('');
+  const [bodyFat, setBodyFat] = useState('');
   const [date, setDate] = useState(today);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose,
     e.preventDefault();
     if (!weight || !date) return;
     setLoading(true);
-    await onSubmit(Number(weight), date);
+    await onSubmit(Number(weight), date, bodyFat ? Number(bodyFat) : undefined);
     setLoading(false);
     onClose();
   };
@@ -41,20 +42,37 @@ export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose,
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-600 ml-1">體重 (kg)</label>
-            <div className="relative">
-              <Weight className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-300 w-5 h-5" />
-              <input
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                autoFocus
-                required
-                className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-rose-100 focus:border-rose-400 focus:outline-none text-xl font-bold"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-              />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-600 ml-1">體重 (kg)</label>
+              <div className="relative">
+                <Weight className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-300 w-4 h-4" />
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="0.0"
+                  autoFocus
+                  required
+                  className="w-full pl-9 pr-3 py-3 rounded-xl border-2 border-rose-100 focus:border-rose-400 focus:outline-none text-lg font-bold"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-600 ml-1">體脂 (%)</label>
+              <div className="relative">
+                <Activity className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-300 w-4 h-4" />
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="可選"
+                  className="w-full pl-9 pr-3 py-3 rounded-xl border-2 border-rose-100 focus:border-rose-400 focus:outline-none text-lg font-bold"
+                  value={bodyFat}
+                  onChange={(e) => setBodyFat(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
