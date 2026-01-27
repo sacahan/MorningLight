@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calculateBMI, getBMICategory } from './health'
+import { calculateBMI, getBMIStatus } from './health'
 
 describe('BMI Utils', () => {
   describe('calculateBMI', () => {
@@ -14,14 +14,14 @@ describe('BMI Utils', () => {
     })
   })
 
-  describe('getBMICategory', () => {
-    it('should categorize correctly based on Asian standards', () => {
-      expect(getBMICategory(18.4)).toBe('過輕')
-      expect(getBMICategory(18.5)).toBe('健康')
-      expect(getBMICategory(22.9)).toBe('健康')
-      expect(getBMICategory(23.0)).toBe('過重')
-      expect(getBMICategory(24.9)).toBe('過重')
-      expect(getBMICategory(25.0)).toBe('肥胖')
+  describe('getBMIStatus', () => {
+    it('should categorize correctly based on Taiwan MOHW standards', () => {
+      expect(getBMIStatus(18.4).label).toBe('過輕')
+      expect(getBMIStatus(18.5).label).toBe('健康')
+      expect(getBMIStatus(23.9).label).toBe('健康')
+      expect(getBMIStatus(24.0).label).toBe('過重')
+      expect(getBMIStatus(26.9).label).toBe('過重')
+      expect(getBMIStatus(27.0).label).toBe('肥胖')
     })
   })
 })

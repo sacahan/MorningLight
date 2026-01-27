@@ -11,6 +11,7 @@ import { useWeights } from './hooks/useWeights'
 import { Plus, LogOut, ChartLine, Download } from 'lucide-react'
 import type { User, Session } from '@supabase/supabase-js'
 import { downloadCsv, weightsToCsv } from './utils/export'
+import { calculateBMI, getBMIStatus, BMI_IDEAL_RANGE } from './utils/health'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -84,18 +85,9 @@ function App() {
 
   // Calculate Dashboard Data
   const currentWeight = weights[0]?.weight ?? 0
-  const bmi = currentWeight > 0 && settings.height > 0
-    ? (currentWeight / ((settings.height / 100) ** 2)).toFixed(1)
-    : '--'
-
-  const getBmiStatus = (bmiValue: number) => {
-    if (bmiValue < 18.5) return { label: '過輕', color: 'text-blue-500', bg: 'bg-blue-100' }
-    if (bmiValue < 24) return { label: '健康', color: 'text-emerald-500', bg: 'bg-emerald-100' }
-    if (bmiValue < 27) return { label: '過重', color: 'text-orange-500', bg: 'bg-orange-100' }
-    return { label: '肥胖', color: 'text-rose-500', bg: 'bg-rose-100' }
-  }
-
-  const bmiStatus = bmi !== '--' ? getBmiStatus(Number(bmi)) : null
+  const bmiValue = calculateBMI(currentWeight, settings.height)
+  const bmi = bmiValue > 0 ? bmiValue.toFixed(1) : '--'
+  const bmiStatus = bmiValue > 0 ? getBMIStatus(bmiValue) : null
 
   // Mascot expression logic
   const getExpression = () => {
@@ -129,7 +121,14 @@ function App() {
          {/* Dashboard Cards */}
          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           <div className="card p-5 relative overflow-hidden">
-            <p className="text-slate-400 text-sm font-bold mb-1">目前體重</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-slate-400 text-sm font-bold">目前體重</p>
+              {settings.target_weight && (
+                <span className="text-[10px] font-bold text-rose-400 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
+                  目標 {settings.target_weight} kg
+                </span>
+              )}
+            </div>
             <div className="flex items-end gap-2">
               <span className="text-4xl font-black text-slate-700">{currentWeight || '--'}</span>
               <span className="text-sm font-bold text-slate-400 mb-2">kg</span>
@@ -143,7 +142,12 @@ function App() {
           </div>
 
           <div className="card p-5">
-            <p className="text-slate-400 text-sm font-bold mb-1">BMI 指數</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-slate-400 text-sm font-bold">BMI 指數</p>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">
+                理想 {BMI_IDEAL_RANGE}
+              </span>
+            </div>
             <div className="flex items-end gap-2">
               <span className="text-4xl font-black text-slate-700">{bmi}</span>
             </div>
