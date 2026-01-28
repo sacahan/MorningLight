@@ -17,10 +17,21 @@ webpush.setVapidDetails(
   VAPID_PRIVATE_KEY
 );
 
+
 // 初始化 Supabase Client (使用 Service Role Key 以獲得管理權限)
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 Deno.serve(async (req) => {
+  // Handle CORS preflight request
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     // 解析請求 URL 和參數
     const url = new URL(req.url);
@@ -47,7 +58,7 @@ Deno.serve(async (req) => {
       if (settingsError) throw settingsError;
       if (!settings || settings.length === 0) {
         return new Response(JSON.stringify({ message: "No users to notify for this hour" }), {
-          headers: { "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -75,13 +86,13 @@ Deno.serve(async (req) => {
     } else {
       return new Response(JSON.stringify({ error: "Missing hour parameter or test body" }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (usersToNotify.length === 0) {
       return new Response(JSON.stringify({ message: "Everyone has recorded their weight!" }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -126,12 +137,12 @@ Deno.serve(async (req) => {
     );
 
     return new Response(JSON.stringify({ results }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
