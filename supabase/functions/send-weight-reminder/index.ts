@@ -2,52 +2,94 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
-// 取得環境變數
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
-const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
-
-// 設定 Web Push VAPID 詳細資訊
-// FIXME: 建議將 mailto 更改為實際的管理員信箱
-webpush.setVapidDetails(
-  "mailto:" + VAPID_SUBJECT,
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
-
-
-// 初始化 Supabase Client (使用 Service Role Key 以獲得管理權限)
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight request
+  // 1. 處理 CORS Preflight (OPTIONS)
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // 解析請求 URL 和參數
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
+    const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
+
+    // 容錯處理：如果沒有設定 VAPID_SUBJECT，使用預設值避免崩潰
+    let VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT");
+    if (!VAPID_SUBJECT) {
+      console.warn("VAPID_SUBJECT not set, using default.");
+      VAPID_SUBJECT = "mailto:admin@example.com";
+    }
+    // 確保格式是 URL 或 mailto
+    if (!VAPID_SUBJECT.startsWith("mailto:") && !VAPID_SUBJECT.startsWith("http")) {
+      VAPID_SUBJECT = `mailto:${VAPID_SUBJECT}`;
+    }
+
+    // 設定 Web Push (包在 try-catch 中避免 crash)
+    try {
+      webpush.setVapidDetails(
+        VAPID_SUBJECT,
+        VAPID_PUBLIC_KEY,
+        VAPID_PRIVATE_KEY
+      );
+    } catch (e) {
+      console.error("WebPush valid details setup failed:", e);
+      throw new Error(`WebPush setup failed: ${e.message}`);
+    }
+
+    // 初始化 Supabase Context (使用 Service Role Key 以獲得管理權限)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // 解析請求
     const url = new URL(req.url);
     const hourParam = url.searchParams.get("hour");
     const body = await req.json().catch(() => ({}));
 
+    // 手動驗證 JWT (因為我們會暫時關閉 Edge Function 原生的 Verify JWT 以避免 401 問題)
+    const authHeader = req.headers.get("Authorization");
+    let user = null;
+    if (authHeader) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        // 只有 User Token 才能解析出 User，Anon Key 會回傳 null
+        const { data: { user: u }, error: authError } = await supabase.auth.getUser(token);
+        if (u) user = u;
+        if (authError) {
+          console.log("Auth check warning:", authError.message);
+        }
+      } catch (err) {
+        console.error("Error verifying JWT:", err);
+      }
+    }
+
     let usersToNotify: string[] = [];
 
-    // 判斷執行模式
     if (body.test && body.userId) {
-      // 測試模式：只發送給指定的使用者 (通常用於前端測試按鈕)
+      // 測試模式
+      // 安全性檢查：如果是測試模式，確保呼叫者只能測試自己的 ID
+      if (!user) {
+        return new Response(JSON.stringify({ error: "Unauthorized: Please login first to send test notification" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (user.id !== body.userId) {
+        return new Response(JSON.stringify({ error: "Forbidden: You can only test your own notifications" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       usersToNotify = [body.userId];
     } else if (hourParam) {
-      // 排程模式：根據傳入的小時參數，找出需要接收提醒的使用者
+      // Cron 模式
       const hour = parseInt(hourParam);
-      
+
       // 1. 查詢在這個時間點開啟提醒的使用者
       const { data: settings, error: settingsError } = await supabase
         .from("settings")
@@ -70,7 +112,6 @@ Deno.serve(async (req) => {
       const taiwanTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
       const today = taiwanTime.toISOString().split("T")[0];
 
-      // 查詢這些使用者今天的體重記錄
       const { data: weights, error: weightsError } = await supabase
         .from("weights")
         .select("user_id")
@@ -79,9 +120,7 @@ Deno.serve(async (req) => {
 
       if (weightsError) throw weightsError;
 
-      // 找出已經記錄過的使用者 ID
       const usersWithWeight = new Set(weights.map((w) => w.user_id));
-      // 篩選出尚未記錄的使用者 (即將發送通知的目標)
       usersToNotify = allUserIds.filter((id) => !usersWithWeight.has(id));
     } else {
       return new Response(JSON.stringify({ error: "Missing hour parameter or test body" }), {
@@ -91,7 +130,7 @@ Deno.serve(async (req) => {
     }
 
     if (usersToNotify.length === 0) {
-      return new Response(JSON.stringify({ message: "Everyone has recorded their weight!" }), {
+      return new Response(JSON.stringify({ message: "Everyone has recorded their weight or no test user found!" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -140,7 +179,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    // 捕捉所有未預期的錯誤，並回傳 500 JSON 以及詳細錯誤訊息
+    return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
