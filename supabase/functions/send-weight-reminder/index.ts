@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  // 1. 處理 CORS Preflight (OPTIONS)
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -19,18 +18,15 @@ Deno.serve(async (req) => {
     const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 
-    // 容錯處理：如果沒有設定 VAPID_SUBJECT，使用預設值避免崩潰
     let VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT");
     if (!VAPID_SUBJECT) {
       console.warn("VAPID_SUBJECT not set, using default.");
       VAPID_SUBJECT = "mailto:admin@example.com";
     }
-    // 確保格式是 URL 或 mailto
     if (!VAPID_SUBJECT.startsWith("mailto:") && !VAPID_SUBJECT.startsWith("http")) {
       VAPID_SUBJECT = `mailto:${VAPID_SUBJECT}`;
     }
 
-    // 設定 Web Push (包在 try-catch 中避免 crash)
     try {
       webpush.setVapidDetails(
         VAPID_SUBJECT,
@@ -38,42 +34,47 @@ Deno.serve(async (req) => {
         VAPID_PRIVATE_KEY
       );
     } catch (e) {
-      console.error("WebPush valid details setup failed:", e);
+      console.error("WebPush setup failed:", e);
       throw new Error(`WebPush setup failed: ${e.message}`);
     }
 
-    // 初始化 Supabase Context (使用 Service Role Key 以獲得管理權限)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 解析請求
     const url = new URL(req.url);
     const hourParam = url.searchParams.get("hour");
     const body = await req.json().catch(() => ({}));
 
-    // 手動驗證 JWT (因為我們會暫時關閉 Edge Function 原生的 Verify JWT 以避免 401 問題)
+    // Manual JWT verification
     const authHeader = req.headers.get("Authorization");
     let user = null;
+    let authDebugError = null;
+    let tokenDebug = "none";
     if (authHeader) {
       try {
         const token = authHeader.replace("Bearer ", "");
-        // 只有 User Token 才能解析出 User，Anon Key 會回傳 null
+        tokenDebug = token.substring(0, 10) + "...";
         const { data: { user: u }, error: authError } = await supabase.auth.getUser(token);
         if (u) user = u;
         if (authError) {
-          console.log("Auth check warning:", authError.message);
+          authDebugError = authError.message;
+          console.log("Auth error:", authError);
         }
       } catch (err) {
-        console.error("Error verifying JWT:", err);
+        authDebugError = "Exception: " + err.message;
       }
     }
 
     let usersToNotify: string[] = [];
 
     if (body.test && body.userId) {
-      // 測試模式
-      // 安全性檢查：如果是測試模式，確保呼叫者只能測試自己的 ID
       if (!user) {
-        return new Response(JSON.stringify({ error: "Unauthorized: Please login first to send test notification" }), {
+        // Return debug info in 401 response
+        return new Response(JSON.stringify({
+          error: "Unauthorized: Please login first",
+          debug_error: authDebugError,
+          debug_token: tokenDebug,
+          debug_project_url: SUPABASE_URL.substring(0, 20) + "..."
+        }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -84,13 +85,11 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
       usersToNotify = [body.userId];
     } else if (hourParam) {
-      // Cron 模式
+      // Cron mode
       const hour = parseInt(hourParam);
 
-      // 1. 查詢在這個時間點開啟提醒的使用者
       const { data: settings, error: settingsError } = await supabase
         .from("settings")
         .select("user_id")
@@ -106,8 +105,6 @@ Deno.serve(async (req) => {
 
       const allUserIds = settings.map((s) => s.user_id);
 
-      // 2. 過濾掉今天已經記錄過體重的使用者
-      // 台灣時間是 UTC+8
       const now = new Date();
       const taiwanTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
       const today = taiwanTime.toISOString().split("T")[0];
@@ -130,12 +127,11 @@ Deno.serve(async (req) => {
     }
 
     if (usersToNotify.length === 0) {
-      return new Response(JSON.stringify({ message: "Everyone has recorded their weight or no test user found!" }), {
+      return new Response(JSON.stringify({ message: "Everyone has recorded their weight or no test user detected!" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 3. 取得這些使用者的推播訂閱資訊 (Push Subscription)
     const { data: subscriptions, error: subError } = await supabase
       .from("push_subscriptions")
       .select("user_id, endpoint, p256dh, auth")
@@ -143,7 +139,6 @@ Deno.serve(async (req) => {
 
     if (subError) throw subError;
 
-    // 4. 發送通知
     const results = await Promise.allSettled(
       subscriptions.map(async (sub) => {
         const pushSubscription = {
@@ -163,7 +158,6 @@ Deno.serve(async (req) => {
           await webpush.sendNotification(pushSubscription, payload);
           return { user_id: sub.user_id, success: true };
         } catch (err) {
-          // 如果訂閱失效 (404 Not Found 或 410 Gone)，則從資料庫中移除該訂閱
           if (err.statusCode === 404 || err.statusCode === 410) {
             await supabase
               .from("push_subscriptions")
@@ -179,7 +173,6 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    // 捕捉所有未預期的錯誤，並回傳 500 JSON 以及詳細錯誤訊息
     return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
