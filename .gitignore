@@ -24,5 +24,10 @@ dist-ssr
 *.sln
 *.sw?
 
+# Project
+.env
+.temp/
+
+
 # Skills
 .*/skills/
