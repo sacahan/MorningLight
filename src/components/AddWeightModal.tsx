@@ -84,7 +84,8 @@ export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose,
                  type="date"
                  max={today}
                  required
-                 className="w-full pl-12 pr-4 py-3 md:py-4 rounded-2xl border-2 border-rose-100 focus:border-rose-400 focus:outline-none font-bold text-sm md:text-base"
+                 className="w-full pl-12 pr-4 py-3 md:py-4 rounded-2xl border-2 border-rose-100 focus:border-rose-400 focus:outline-none font-bold text-sm md:text-base appearance-none bg-white"
+                 style={{ minWidth: 0 }}
                  value={date}
                  onChange={(e) => setDate(e.target.value)}
                />
