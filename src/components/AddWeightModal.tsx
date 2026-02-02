@@ -9,7 +9,7 @@ interface AddWeightModalProps {
 }
 
 export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA'); // 使用本地時區的 YYYY-MM-DD 格式
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [date, setDate] = useState(today);
