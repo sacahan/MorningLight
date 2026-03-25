@@ -39,11 +39,12 @@ function App() {
   }, [])
 
   const { settings, loading: settingsLoading, updateSettings } = useSettings(user?.id)
-  const { weights, loading: weightsLoading, hasMore, addWeight, deleteWeight, fetchMore } = useWeights(user?.id)
+  const { weights, loading: weightsLoading, hasMore, addWeight, updateWeight, deleteWeight, fetchMore } = useWeights(user?.id)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [chartView, setChartView] = useState<'7d' | '30d' | 'all'>('7d')
+  const [editingRecord, setEditingRecord] = useState<{ id: string; weight: number; body_fat?: number; date: string } | null>(null)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -218,21 +219,39 @@ function App() {
           hasMore={hasMore}
           onLoadMore={fetchMore}
           onDelete={async (id) => { await deleteWeight(id) }}
+          onEdit={(record) => {
+            setEditingRecord(record)
+            setIsModalOpen(true)
+          }}
         />
       </main>
 
       {/* Floating Action Button */}
       <button
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => {
+          setEditingRecord(null)
+          setIsModalOpen(true)
+        }}
         className="fixed bottom-6 right-6 w-16 h-16 bg-rose-500 hover:bg-rose-600 text-white rounded-full shadow-lg shadow-rose-200 flex items-center justify-center transition-transform active:scale-95 z-50"
       >
         <Plus className="w-8 h-8" />
       </button>
 
       <AddWeightModal
+        key={editingRecord?.id ?? 'new'}
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={async (w, d, bf) => { await addWeight(w, d, bf) }}
+        onClose={() => {
+          setIsModalOpen(false)
+          setEditingRecord(null)
+        }}
+        initialRecord={editingRecord ?? undefined}
+        onSubmit={async (w, d, bf) => {
+          if (editingRecord) {
+            await updateWeight(editingRecord.id, w, d, bf)
+          } else {
+            await addWeight(w, d, bf)
+          }
+        }}
       />
 
       {user && settings && (

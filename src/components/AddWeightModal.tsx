@@ -2,17 +2,31 @@ import React, { useState } from 'react';
 import { Mascot } from './Mascot';
 import { Calendar, Weight, X, Activity } from 'lucide-react';
 
+interface WeightRecord {
+  id: string;
+  weight: number;
+  body_fat?: number;
+  date: string;
+}
+
 interface AddWeightModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (weight: number, date: string, bodyFat?: number) => Promise<void>;
+  /** 若提供此 prop，則進入「編輯模式」 */
+  initialRecord?: WeightRecord;
 }
 
-export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose, onSubmit }) => {
+export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose, onSubmit, initialRecord }) => {
   const today = new Date().toLocaleDateString('en-CA'); // 使用本地時區的 YYYY-MM-DD 格式
-  const [weight, setWeight] = useState('');
-  const [bodyFat, setBodyFat] = useState('');
-  const [date, setDate] = useState(today);
+  const isEditMode = !!initialRecord;
+
+  // 使用 lazy initializer 直接從 initialRecord 讀取初始值，避免在 effect 中 setState
+  const [weight, setWeight] = useState(() => (initialRecord ? String(initialRecord.weight) : ''));
+  const [bodyFat, setBodyFat] = useState(() =>
+    initialRecord && initialRecord.body_fat != null ? String(initialRecord.body_fat) : ''
+  );
+  const [date, setDate] = useState(() => initialRecord?.date ?? today);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -37,8 +51,10 @@ export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose,
          </button>
 
          <div className="text-center space-y-3 md:space-y-4 mb-4 md:mb-6 pt-2">
-           <Mascot expression="happy" className="w-20 h-20 md:w-24 md:h-24 mx-auto" />
-           <h2 className="text-xl md:text-2xl font-bold text-rose-500">紀錄今天的分量</h2>
+           <Mascot expression={isEditMode ? 'happy' : 'happy'} className="w-20 h-20 md:w-24 md:h-24 mx-auto" />
+           <h2 className="text-xl md:text-2xl font-bold text-rose-500">
+             {isEditMode ? '修改紀錄' : '紀錄今天的分量'}
+           </h2>
          </div>
 
          <form onSubmit={handleSubmit} className="space-y-4 px-6 pb-6">
@@ -97,7 +113,7 @@ export const AddWeightModal: React.FC<AddWeightModalProps> = ({ isOpen, onClose,
              disabled={loading}
              className="btn-primary w-full py-3 md:py-4 mt-2 text-sm md:text-base"
            >
-             {loading ? '儲存中...' : '確認紀錄'}
+             {loading ? '儲存中...' : isEditMode ? '儲存修改' : '確認紀錄'}
            </button>
          </form>
        </div>

@@ -1,10 +1,11 @@
 import React from 'react';
-import { Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { Trash2, Pencil, Calendar as CalendarIcon } from 'lucide-react';
 import type { WeightRecord } from '../hooks/useWeights';
 
 interface HistoryListProps {
   records: WeightRecord[];
   onDelete: (id: string) => Promise<void>;
+  onEdit: (record: WeightRecord) => void;
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
@@ -12,7 +13,8 @@ interface HistoryListProps {
 
 export const HistoryList: React.FC<HistoryListProps> = ({ 
   records, 
-  onDelete, 
+  onDelete,
+  onEdit,
   loading, 
   hasMore, 
   onLoadMore 
@@ -45,12 +47,22 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                </div>
              </div>
              
-             <button 
-               onClick={() => handleDelete(record.id)}
-               className="p-2 md:p-3 rounded-xl hover:bg-rose-50 text-slate-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
-             >
-               <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-             </button>
+             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+               <button 
+                 onClick={() => onEdit(record)}
+                 className="p-2 md:p-3 rounded-xl hover:bg-rose-50 text-slate-300 hover:text-rose-400 transition-all"
+                 title="編輯紀錄"
+               >
+                 <Pencil className="w-4 h-4 md:w-5 md:h-5" />
+               </button>
+               <button 
+                 onClick={() => handleDelete(record.id)}
+                 className="p-2 md:p-3 rounded-xl hover:bg-rose-50 text-slate-300 hover:text-rose-500 transition-all"
+                 title="刪除紀錄"
+               >
+                 <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+               </button>
+             </div>
            </div>
          ))}
        </div>

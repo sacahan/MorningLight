@@ -85,5 +85,19 @@ export function useWeights(userId: string | undefined) {
     return error;
   };
 
-  return { weights, loading, hasMore, addWeight, deleteWeight, fetchMore: () => fetchWeights() };
+  const updateWeight = async (id: string, weight: number, date: string, bodyFat?: number) => {
+    if (!userId) return;
+    const { error } = await supabase
+      .from('weights')
+      .update({ weight, date, body_fat: bodyFat ?? null })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (!error) {
+      fetchWeights(true);
+    }
+    return error;
+  };
+
+  return { weights, loading, hasMore, addWeight, updateWeight, deleteWeight, fetchMore: () => fetchWeights() };
 }
