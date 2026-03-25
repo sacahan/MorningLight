@@ -47,7 +47,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                </div>
              </div>
              
-             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+             {/* 手機上永遠顯示按鈕，桌機上 hover 才顯示 */}
+             <div className="flex items-center gap-1 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-all">
                <button 
                  onClick={() => onEdit(record)}
                  className="p-2 md:p-3 rounded-xl hover:bg-rose-50 text-slate-300 hover:text-rose-400 transition-all"
