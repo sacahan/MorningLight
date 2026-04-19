@@ -80,4 +80,4 @@ jobs:
             echo "::warning::SUPABASE_PROJECT_ID secret is not set — skipping Edge Function deploy."
             exit 0
           fi
-          supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"
+          supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt

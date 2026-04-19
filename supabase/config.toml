@@ -1,0 +1,8 @@
+# A string used to distinguish different Supabase projects on the same host.
+# Defaults to the working directory name when running `supabase init`.
+project_id = "morninglight"
+
+[functions.weights-api]
+# Disable Supabase gateway JWT verification so the function can use its own
+# custom API key authentication (WEIGHTS_API_KEY Supabase secret).
+verify_jwt = false

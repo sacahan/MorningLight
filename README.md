@@ -193,7 +193,7 @@ curl "https://<project-ref>.supabase.co/functions/v1/weights-api?user_id=<uuid>&
 supabase secrets set WEIGHTS_API_KEY=<your-secure-api-key>
 
 # 2. 部署 Edge Function
-supabase functions deploy weights-api
+supabase functions deploy weights-api --no-verify-jwt
 ```
 
 ---
