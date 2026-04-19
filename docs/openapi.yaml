@@ -1,0 +1,314 @@
+openapi: 3.1.0
+info:
+  title: Morning Light - Weights API
+  description: |
+    RESTful API for querying weight measurement records within a specified date range.
+    Implemented as a Supabase Edge Function with API key authentication.
+
+    ## Authentication
+    Provide the API key in **one** of the following ways:
+    - `Authorization: Bearer <api_key>` header
+    - `x-api-key: <api_key>` header
+
+    The API key is configured as the Supabase secret `WEIGHTS_API_KEY`.
+  version: 1.0.0
+  contact:
+    name: Morning Light
+    url: https://github.com/sacahan/MorningLight
+
+servers:
+  - url: https://{project_ref}.supabase.co/functions/v1
+    description: Supabase Edge Functions (production)
+    variables:
+      project_ref:
+        description: Your Supabase project reference ID
+        default: your-project-ref
+
+security:
+  - BearerApiKey: []
+  - XApiKey: []
+
+paths:
+  /weights-api:
+    get:
+      operationId: getWeightsByRange
+      summary: Get weight records by date range
+      description: |
+        Returns weight records for a specific user within a date range.
+        Supports two range modes:
+        - **Explicit range**: provide `start_date` + `end_date`
+        - **Relative range**: provide `days` (last N days); takes precedence over explicit range
+      tags:
+        - Weights
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: UUID of the user whose weight records to retrieve
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+        - name: days
+          in: query
+          required: false
+          description: |
+            Number of days to look back from today (inclusive).
+            If provided, overrides `start_date` and `end_date`.
+            Must be between 1 and 3650.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3650
+          example: 30
+
+        - name: start_date
+          in: query
+          required: false
+          description: |
+            Start date of the range (inclusive). Required if `days` is not provided.
+            Format: `YYYY-MM-DD`
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+
+        - name: end_date
+          in: query
+          required: false
+          description: |
+            End date of the range (inclusive). Required if `days` is not provided.
+            Format: `YYYY-MM-DD`. Must be on or after `start_date`.
+          schema:
+            type: string
+            format: date
+          example: "2025-03-31"
+
+        - name: order
+          in: query
+          required: false
+          description: Sort order of the returned records by date
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          example: asc
+
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of records to return (1–1000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+          example: 100
+
+      responses:
+        "200":
+          description: Successful response containing weight records and query metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeightsResponse"
+              examples:
+                dateRangeQuery:
+                  summary: Query by explicit date range
+                  value:
+                    data:
+                      - id: "uuid-1"
+                        weight: 70.5
+                        body_fat: 20.1
+                        date: "2025-01-01"
+                        created_at: "2025-01-01T08:00:00Z"
+                      - id: "uuid-2"
+                        weight: 70.2
+                        body_fat: null
+                        date: "2025-01-02"
+                        created_at: "2025-01-02T08:00:00Z"
+                    meta:
+                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                      start_date: "2025-01-01"
+                      end_date: "2025-03-31"
+                      count: 2
+                lastNDaysQuery:
+                  summary: Query last 30 days
+                  value:
+                    data:
+                      - id: "uuid-3"
+                        weight: 69.8
+                        body_fat: 19.5
+                        date: "2025-03-20"
+                        created_at: "2025-03-20T07:30:00Z"
+                    meta:
+                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                      start_date: "2025-03-01"
+                      end_date: "2025-03-30"
+                      count: 1
+
+        "400":
+          description: Bad request — invalid or missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                missingUserId:
+                  summary: Missing user_id
+                  value:
+                    error: "Missing required parameter: user_id."
+                missingRange:
+                  summary: Missing date range parameters
+                  value:
+                    error: "Provide either 'days' or both 'start_date' and 'end_date'."
+                invalidDate:
+                  summary: Invalid date format
+                  value:
+                    error: "Invalid 'start_date'. Use YYYY-MM-DD format."
+                startAfterEnd:
+                  summary: start_date is after end_date
+                  value:
+                    error: "'start_date' must not be after 'end_date'."
+                invalidDays:
+                  summary: Invalid days parameter
+                  value:
+                    error: "Invalid 'days'. Must be an integer between 1 and 3650."
+                invalidOrder:
+                  summary: Invalid order value
+                  value:
+                    error: "Invalid value for 'order'. Use 'asc' or 'desc'."
+                invalidLimit:
+                  summary: Invalid limit value
+                  value:
+                    error: "Invalid 'limit'. Must be an integer between 1 and 1000."
+
+        "401":
+          description: Unauthorized — missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Unauthorized: invalid or missing API key."
+
+        "405":
+          description: Method not allowed — only GET is supported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Method not allowed. Use GET."
+
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Internal server error: ..."
+
+components:
+  securitySchemes:
+    BearerApiKey:
+      type: http
+      scheme: bearer
+      description: "Pass the API key as `Authorization: Bearer <api_key>`"
+    XApiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: "Pass the API key as `x-api-key: <api_key>`"
+
+  schemas:
+    WeightRecord:
+      type: object
+      description: A single weight measurement record
+      required:
+        - id
+        - weight
+        - date
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique record identifier
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        weight:
+          type: number
+          description: Body weight in kilograms
+          example: 70.5
+        body_fat:
+          type: number
+          nullable: true
+          description: Body fat percentage (optional)
+          example: 20.1
+        date:
+          type: string
+          format: date
+          description: Date of the measurement (YYYY-MM-DD)
+          example: "2025-01-15"
+        created_at:
+          type: string
+          format: date-time
+          description: Record creation timestamp (UTC)
+          example: "2025-01-15T08:00:00Z"
+
+    ResponseMeta:
+      type: object
+      description: Metadata about the query result
+      required:
+        - user_id
+        - start_date
+        - end_date
+        - count
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: UUID of the queried user
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        start_date:
+          type: string
+          format: date
+          description: Actual start date used for the query
+          example: "2025-01-01"
+        end_date:
+          type: string
+          format: date
+          description: Actual end date used for the query
+          example: "2025-03-31"
+        count:
+          type: integer
+          description: Number of records returned
+          example: 50
+
+    WeightsResponse:
+      type: object
+      description: Successful response containing weight data and query metadata
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeightRecord"
+          description: Array of weight records matching the query
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+
+    ErrorResponse:
+      type: object
+      description: Error response body
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error description
+          example: "Missing required parameter: user_id."
